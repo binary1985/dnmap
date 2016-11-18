@@ -1,141 +1,17 @@
 #! /usr/bin/env python
-#  Copyright (C) 2009  Sebastian Garcia
-#
-#  This program is free software; you can redistribute it and/or modify
-#  it under the terms of the GNU General Public License as published by
-#  the Free Software Foundation; either version 2 of the License, or
-#  (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software
-#  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-#
-#
-# Author:
-# Sebastian Garcia eldraco@gmail.com
-#
-# Based on code from Twisted examples.
-# Copyright (c) Twisted Matrix Laboratories.
-
-# Copyright (c) Twisted Matrix Laboratories.
-# See LICENSE for details.
-#
-# CHANGELOG
-# 0.6guadalajaraCON (Paulino Calderon calderon@websec.mx)
-#  - Added -o flag to dump the raw output in a file
-#  - Replaced security check
-# 0.6
-#  - Added some more chars to the command injection prevention.
-#  - Clients decide the nmap scanning rate.
-#  - If the server sends a --min-rate parameter, we now delete it. WE control the scan speed.
-#  - Clients decide the nmap scanning rate.
-#  - Exit if nmap is not installed
-#  - Stop sending the euid, it was a privacy violation. Now we just say if we are root or not.
-#
-# TODO
-# - privileges on nmap
-#
-
-try:
-	from OpenSSL import SSL
-except:
-	print 'You need openssl libs for python. apt-get install python-openssl'
-	exit(-1)
-
-import sys
-
-try:
-	from twisted.internet.protocol import ClientFactory, ReconnectingClientFactory
-	from twisted.protocols.basic import LineReceiver
-	from twisted.internet import ssl, reactor
-except:
-	print 'You need twisted libs for python. apt-get install python-twisted'
-	exit(-1)
-
-
-import time, getopt, shlex
+import sys,time, getopt, shlex, os, random
 from subprocess import Popen
 from subprocess import PIPE
-import os
-import random
 
 # Global variables
 server_ip = False
 server_port = 46001 
-vernum = '0.6guadalajaracon'
+vernum = '0.1fork'
 # Your name alias defaults to anonymous
-alias='Anonymous'
+alias='Fork'
 debug=False
-# Do not use a max rate by default
-maxrate = False
 output_file = 'dnmap_client_output.txt'
 # End global variables
-
-
-# Print version information and exit
-def version():
-  print "+----------------------------------------------------------------------+"
-  print "| dnmap Client Version "+ vernum +"                                             |"
-  print "| This program is free software; you can redistribute it and/or modify |"
-  print "| it under the terms of the GNU General Public License as published by |"
-  print "| the Free Software Foundation; either version 2 of the License, or    |"
-  print "| (at your option) any later version.                                  |"
-  print "|                                                                      |"
-  print "| Author: Garcia Sebastian, eldraco@gmail.com                          |"
-  print "| www.mateslab.com.ar                                                  |"
-  print "+----------------------------------------------------------------------+"
-  print
-
-
-# Print help information and exit:
-def usage():
-  print "+----------------------------------------------------------------------+"
-  print "| dnmap Client Version "+ vernum +"                                             |"
-  print "| This program is free software; you can redistribute it and/or modify |"
-  print "| it under the terms of the GNU General Public License as published by |"
-  print "| the Free Software Foundation; either version 2 of the License, or    |"
-  print "| (at your option) any later version.                                  |"
-  print "|                                                                      |"
-  print "| Author: Garcia Sebastian, eldraco@gmail.com                          |"
-  print "| www.mateslab.com.ar                                                  |"
-  print "+----------------------------------------------------------------------+"
-  print "\nusage: %s <options>" % sys.argv[0]
-  print "options:"
-  print "  -s, --server-ip        IP address of dnmap server."
-  print "  -p, --server-port      Port of dnmap server. Dnmap port defaults to 46001"
-  print "  -a, --alias      Your name alias so we can give credit to you for your help. Optional"
-  print "  -d, --debug      Debuging."
-  print "  -o, --output-file   Filename where the raw nmap output should be stored. Default: dnmap_client_output.txt. Optional"
-  print "  -m, --max-rate      Force nmaps commands to use at most this rate. Useful to slow nmap down. Adds the --max-rate parameter."
-  print
-  sys.exit(1)
-
-
-
-def check_clean(line):
-	global debug
-	try:
-		outbound_chars = [';', '#', '`']
-		ret = True
-		for char in outbound_chars:
-			if char in line:
-				ret = False
-		return ret
-
-	except Exception as inst:
-		print 'Problem in dataReceived function'
-		print type(inst)
-		print inst.args
-		print inst
-
-
-
-
 
 class NmapClient(LineReceiver):
 	def connectionMade(self):
@@ -217,16 +93,6 @@ class NmapClient(LineReceiver):
 						nmap_command = temp_vect[0:word_index] + temp_vect[word_index + 1:]
 					else:
 						nmap_command = shlex.split(line)
-
-					# Do we have to add a max-rate parameter?
-					if maxrate:
-						nmap_command.append('--max-rate')
-						nmap_command.append(str((maxrate)))
-
-                                        #guadalajaraCON
-                                        if nmap_command[0] != "nmap": 
-                                                print "Unrecognized command. Exiting..."
-                                                exit(-1)
                                         
 					# Recreate the final command to show it
 					nmap_command_string = ''
@@ -243,22 +109,10 @@ class NmapClient(LineReceiver):
                                         fp_client_output.closed
 
 					nmap_returncode = nmap_process.returncode
-					
-				except OSError:
-					print 'You don\'t have nmap installed. You can install it with apt-get install nmap'
-					exit(-1)
+		
 
-				except ValueError:
-					raw_nmap_output = 'Invalid nmap arguments.'
-					print raw_nmap_output
-
-
-				except Exception as inst:
+				except Exception:
 					print 'Problem in dataReceived function'
-					print type(inst)
-					print inst.args
-					print inst
-
 
 
 				if nmap_returncode >= 0:
